@@ -425,6 +425,7 @@
         <module>checkstyle</module>
         <module>build-tools</module>
         <module>client</module>
+        <module>cli</module>
         <module>metrics</module>
         <module>common</module>
         <module>test-util</module>
