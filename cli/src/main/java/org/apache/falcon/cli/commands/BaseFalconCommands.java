@@ -45,7 +45,7 @@ public class BaseFalconCommands implements ExecutionProcessor {
   static {
     try {
       client = new FalconClient(getFalconEndpoint(), getClientProperties());
-    } catch (IOException | FalconCLIException e) {
+    } catch (FalconCLIException e) {
       throw new RuntimeException("Couldn't start CLI", e);
     }
   }
