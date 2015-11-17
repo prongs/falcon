@@ -33,61 +33,75 @@ import com.google.common.collect.Sets;
 
 
 public class BaseFalconCommands implements ExecutionProcessor {
-  public static final String URL_OPTION = "url";
   private static final String FALCON_URL = "FALCON_URL";
   private static final String DO_AS = "DO_AS";
-  public static final String CLIENT_PROPERTIES = "/client.properties";
-  private final Properties clientProperties;
-  private final FalconClient client;
-  private final String doAsUser;
+  private static final String CLIENT_PROPERTIES = "/client.properties";
+  private static Properties clientProperties;
+  private static final FalconClient client;
+  private static String doAsUser;
 
-  public BaseFalconCommands() {
+  private static String falconUrl;
+
+  static {
     try {
-      clientProperties = getClientProperties();
-      String falconUrl = getFalconEndpoint();
-      doAsUser = getDoAsUserProperty();
-      client = new FalconClient(falconUrl, clientProperties);
+      client = new FalconClient(getFalconEndpoint(), getClientProperties());
     } catch (IOException | FalconCLIException e) {
       throw new RuntimeException("Couldn't start CLI", e);
     }
   }
 
-  private String getDoAsUserProperty() {
-    String url = System.getenv(FALCON_URL);
-    if (url == null) {
-      if (clientProperties.containsKey("do.as")) {
-        url = clientProperties.getProperty("do.as");
-      }
-    }
-    return url;
+  public BaseFalconCommands() {
+
   }
 
-  private Properties getClientProperties() throws IOException {
-    InputStream inputStream = null;
-    try {
-      inputStream = BaseFalconCommands.class.getResourceAsStream(CLIENT_PROPERTIES);
-      Properties prop = new Properties();
-      if (inputStream != null) {
-        prop.load(inputStream);
+  private static String getDoAsUserProperty() throws FalconCLIException {
+    if (doAsUser == null) {
+      String doAs = System.getenv(DO_AS);
+      if (doAs == null) {
+        if (getClientProperties().containsKey("do.as")) {
+          doAs = getClientProperties().getProperty("do.as");
+        }
       }
-      return prop;
-    } finally {
-      IOUtils.closeQuietly(inputStream);
+      doAsUser = doAs;
     }
+    return doAsUser;
   }
 
-  protected String getFalconEndpoint() throws FalconCLIException, IOException {
-    String url = System.getenv(FALCON_URL);
-    if (url == null) {
-      if (clientProperties.containsKey("falcon.url")) {
-        url = clientProperties.getProperty("falcon.url");
+  private static Properties getClientProperties() throws FalconCLIException {
+    if (clientProperties == null) {
+      InputStream inputStream = null;
+      try {
+        inputStream = BaseFalconCommands.class.getResourceAsStream(CLIENT_PROPERTIES);
+        Properties prop = new Properties();
+        if (inputStream != null) {
+          try {
+            prop.load(inputStream);
+          } catch (IOException e) {
+            throw new FalconCLIException(e);
+          }
+        }
+        clientProperties = prop;
+      } finally {
+        IOUtils.closeQuietly(inputStream);
       }
     }
-    if (url == null) {
-      throw new FalconCLIException("Failed to get falcon url from cmdline, or environment or client properties");
-    }
+    return clientProperties;
+  }
 
-    return url;
+  protected static String getFalconEndpoint() throws FalconCLIException {
+    if (falconUrl == null) {
+      String url = System.getenv(FALCON_URL);
+      if (url == null) {
+        if (getClientProperties().containsKey("falcon.url")) {
+          url = getClientProperties().getProperty("falcon.url");
+        }
+      }
+      if (url == null) {
+        throw new FalconCLIException("Failed to get falcon url from cmdline, or environment or client properties");
+      }
+      falconUrl = url;
+    }
+    return falconUrl;
   }
 
   @Override

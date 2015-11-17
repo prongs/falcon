@@ -29,37 +29,6 @@
   <context:component-scan base-package="org.apache.falcon.cli"/>
 
   <bean id="falconConnectionCommands"
-    class="org.apache.falcon.cli.commands.FalconEntityCommands">
+    class="org.apache.falcon.cli.commands.FalconConnectionCommands">
   </bean>
-  <!--<bean id="falconDatabaseCommands"-->
-    <!--class="org.apache.falcon.cli.commands.FalconDatabaseCommands">-->
-  <!--</bean>-->
-  <!--<bean id="falconCubeCommands"-->
-    <!--class="org.apache.falcon.cli.commands.FalconCubeCommands">-->
-  <!--</bean>-->
-  <!--<bean id="falconDimensionCommands"-->
-    <!--class="org.apache.falcon.cli.commands.FalconDimensionCommands">-->
-  <!--</bean>-->
-  <!--<bean id="falconFactCommands"-->
-    <!--class="org.apache.falcon.cli.commands.FalconFactCommands">-->
-  <!--</bean>-->
-  <!--<bean id="falconStorageCommands"-->
-    <!--class="org.apache.falcon.cli.commands.FalconStorageCommands">-->
-  <!--</bean>-->
-
-  <!--<bean id="falconQueryCommands"-->
-    <!--class="org.apache.falcon.cli.commands.FalconQueryCommands">-->
-  <!--</bean>-->
-
-  <!--<bean id="falconDimensionTableCommands"-->
-    <!--class="org.apache.falcon.cli.commands.FalconDimensionTableCommands">-->
-  <!--</bean>-->
-
-  <!--<bean id="falconNativeTableCommands"-->
-    <!--class="org.apache.falcon.cli.commands.FalconNativeTableCommands">-->
-  <!--</bean>-->
-
-  <!--<bean id="falconLogResourceCommands"-->
-    <!--class="org.apache.falcon.cli.commands.FalconLogResourceCommands">-->
-  <!--</bean>-->
 </beans>

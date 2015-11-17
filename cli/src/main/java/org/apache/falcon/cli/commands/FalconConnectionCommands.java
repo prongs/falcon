@@ -19,19 +19,14 @@
 package org.apache.falcon.cli.commands;
 
 
-import java.io.File;
-
 import org.apache.falcon.client.FalconCLIException;
 
 import org.springframework.shell.core.annotation.CliCommand;
-import org.springframework.shell.core.annotation.CliOption;
 
-public class FalconEntityCommands extends BaseFalconCommands {
+public class FalconConnectionCommands extends BaseFalconCommands {
 
-  @CliCommand(value = {"submit entity", "entity submit"},
-    help = "Submit entity")
-  public String submitEntity(@CliOption(key = {"type"}, mandatory = true, help = "entity-type") String entityType,
-    @CliOption(key = {"path"}, mandatory = true, help = "path") File entityPath) throws FalconCLIException {
-    return getClient().submit(entityType, entityPath.getPath(), getDoAsUser()).toString();
+  @CliCommand(value = "get url", help = "get server url")
+  public String getUrl() throws FalconCLIException {
+    return getFalconEndpoint();
   }
 }
