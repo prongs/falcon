@@ -97,7 +97,7 @@ public class BaseFalconCommands implements ExecutionProcessor {
         }
       }
       if (url == null) {
-        throw new FalconCLIException("Failed to get falcon url from cmdline, or environment or client properties");
+        throw new FalconCLIException("Failed to get falcon url from environment or client properties");
       }
       falconUrl = url;
     }
