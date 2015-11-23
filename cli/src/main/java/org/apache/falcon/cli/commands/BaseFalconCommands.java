@@ -39,12 +39,14 @@ public class BaseFalconCommands implements ExecutionProcessor {
   private static final String DO_AS_PROPERTY = "do.as";
   private static final String CLIENT_PROPERTIES = "/client.properties";
   private static Properties clientProperties;
+  private static Properties backupProperties = new Properties();
   private static FalconClient client;
 
   protected static Properties getClientProperties() {
     if (clientProperties == null) {
       InputStream inputStream = null;
-      Properties prop = new Properties();
+      Properties prop = new Properties(System.getProperties());
+      prop.putAll(backupProperties);
       try {
         inputStream = BaseFalconCommands.class.getResourceAsStream(CLIENT_PROPERTIES);
         if (inputStream != null) {
@@ -57,29 +59,36 @@ public class BaseFalconCommands implements ExecutionProcessor {
       } finally {
         IOUtils.closeQuietly(inputStream);
       }
-      clientProperties = prop;
       String urlOverride = System.getenv(FALCON_URL);
       if (urlOverride != null) {
-        clientProperties.setProperty(FALCON_URL_PROPERTY, urlOverride);
+        prop.setProperty(FALCON_URL_PROPERTY, urlOverride);
       }
-      if (clientProperties.getProperty(FALCON_URL_PROPERTY) == null) {
+      if (prop.getProperty(FALCON_URL_PROPERTY) == null) {
         throw new FalconCLIRuntimeException("Failed to get falcon url from environment or client properties");
       }
       String doAsOverride = System.getenv(DO_AS);
       if (doAsOverride != null) {
-        clientProperties.setProperty(DO_AS_PROPERTY, doAsOverride);
+        prop.setProperty(DO_AS_PROPERTY, doAsOverride);
       }
+      clientProperties = prop;
+      backupProperties.clear();
     }
     return clientProperties;
   }
 
   static void setClientProperty(String key, String value) {
-    if (StringUtils.isBlank(value)) {
-      clientProperties.remove(key);
-    } else {
-      clientProperties.setProperty(key, value);
+    Properties props;
+    try {
+      props = getClientProperties();
+    } catch (FalconCLIRuntimeException e) {
+      props = backupProperties;
     }
-    // Re-load client
+    if (StringUtils.isBlank(value)) {
+      props.remove(key);
+    } else {
+      props.setProperty(key, value);
+    }
+    // Re-load client in the next call
     client = null;
   }
 
