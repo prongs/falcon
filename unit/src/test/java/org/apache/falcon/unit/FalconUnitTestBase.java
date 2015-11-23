@@ -94,9 +94,9 @@ public class FalconUnitTestBase {
     private static final String DEFAULT_COLO = "local";
     private static final String CLUSTER = "cluster";
     private static final String COLO = "colo";
-    private static final String CLUSTER_TEMPLATE = "/cluster-template.xml";
-    private static final String STAGING_PATH = "/projects/falcon/staging";
-    private static final String WORKING_PATH = "/projects/falcon/working";
+    private static final String CLUSTER_TEMPLATE = "/local-cluster-template.xml";
+    protected static final String STAGING_PATH = "/projects/falcon/staging";
+    protected static final String WORKING_PATH = "/projects/falcon/working";
 
     public static final Pattern VAR_PATTERN = Pattern.compile("##[A-Za-z0-9_.]*##");
     protected static final int WAIT_TIME = 90000;
@@ -350,11 +350,13 @@ public class FalconUnitTestBase {
     public InstancesResult.WorkflowStatus getRetentionStatus(String feedName, String cluster) throws FalconException,
             FalconCLIException {
         Feed feedEntity = EntityUtil.getEntity(EntityType.FEED, feedName);
-        Frequency.TimeUnit timeUnit = feedEntity.getFrequency().getTimeUnit();
+
+        Frequency feedFrequency = feedEntity.getFrequency();
+        Frequency defaultFrequency = new Frequency("hours(24)");
         long endTimeInMillis = System.currentTimeMillis() + 30000;
         String endTime = DateUtil.getDateFormatFromTime(endTimeInMillis);
         long startTimeInMillis;
-        if (timeUnit == Frequency.TimeUnit.hours || timeUnit == Frequency.TimeUnit.minutes) {
+        if (DateUtil.getFrequencyInMillis(feedFrequency) < DateUtil.getFrequencyInMillis(defaultFrequency)) {
             startTimeInMillis = endTimeInMillis - (6 * DateUtil.HOUR_IN_MILLIS);
         } else {
             startTimeInMillis = endTimeInMillis - (24 * DateUtil.HOUR_IN_MILLIS);

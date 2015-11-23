@@ -1,5 +1,7 @@
 Apache Falcon Change log
 Trunk (Unreleased)
+    FALCON-1594 Update changes.txt to reflect 0.8 as released version(Sowmya Ramesh via Ajay Yadava)
+
     FALCON-1523 Update CHANGES.txt to change 0.8 branch to release(Sowmya Ramesh)
 
     FALCON-1453 Upgrade falcon POM for 0.8 release(Sowmya Ramesh)
@@ -7,6 +9,8 @@ Trunk (Unreleased)
   INCOMPATIBLE CHANGES
 
   NEW FEATURES
+    FALCON-1573 Supply user-defined properties to Oozie workflows during schedule(Daniel Del Castillo via Ajay Yadava)
+
     FALCON-1559 Config changes required for native scheduler (Pallavi Rao)
 
     FALCON-1459 Ability to import from database(Venkat Ramachandran via Sowmya Ramesh)
@@ -14,6 +18,12 @@ Trunk (Unreleased)
     FALCON-1213 Base framework of the native scheduler(Pallavi Rao)
 
   IMPROVEMENTS
+    FALCON-1552 Migration of  ProcessInstanceManagerIT to use falcon unit (Narayan Periwal via Pallavi Rao)
+
+    FALCON-1486 Add Unit Test cases for HiveDR(Peeyush Bishnoi via Ajay Yadava)
+
+    FALCON-1592 Code Refactoring: Introduce Event type for scheduler events (Ajay Yadava via Pallavi Rao)
+
     FALCON-1593 Oozie setup failing in setup phase (Praveen Adlakha via Ajay Yadava)
 
     FALCON-1582 Documentation for globally disabling retries (Pallavi Rao)
@@ -25,6 +35,16 @@ Trunk (Unreleased)
   OPTIMIZATIONS
 
   BUG FIXES
+    FALCON-1606 Process schedule fails in some cases in case of NativeScheduler(Pavan Kumar Kolamuri via Ajay Yadava)
+
+    FALCON-1605 Instance API is not working as expected in case of Native Scheduler(Pavan Kumar Kolamuri via Ajay Yadava)
+
+    FALCON-1603 FeedHelperTest::testGetDateFromPath fails in some environments(Balu Vellanki via Ajay Yadava)
+
+    FALCON-1372 Retention does not work in corner cases(Balu Vellanki via Ajay Yadava)
+
+    FALCON-1569 Bug in setting the frequency of Feed retention coordinator(Sowmya Ramesh)
+
     FALCON-1578 post-processing action fails with javax.servlet.jsp.el.ELException(Venkat Ramachandran via Ajay Yadava)
 
     FALCON-1579 post-processing action fails with javax.servlet.jsp.el.ELException (Sowmya Ramesh via Pallavi Rao)
@@ -33,7 +53,7 @@ Trunk (Unreleased)
  
     FALCON-1554 Fix Changes.txt after 0.8 branch cut(Sowmya Ramesh)
 
-Branch : 0.8 (Proposed Release version: 0.8)
+Release version: 0.8
     FALCON-1349 Upgrade falcon POM for 0.7 release(Ajay Yadava)
 
   INCOMPATIBLE CHANGES
