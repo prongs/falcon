@@ -31,4 +31,10 @@
   <bean id="falconConnectionCommands"
     class="org.apache.falcon.cli.commands.FalconConnectionCommands">
   </bean>
+  <bean id="falconEntityCommands"
+        class="org.apache.falcon.cli.commands.FalconEntityCommands">
+  </bean>
+  <bean id="falconInstanceCommands"
+        class="org.apache.falcon.cli.commands.FalconInstanceCommands">
+  </bean>
 </beans>

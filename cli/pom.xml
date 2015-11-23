@@ -73,6 +73,7 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
+            <scope>compile</scope>
         </dependency>
 
         <dependency>
@@ -158,6 +159,7 @@
                         <includes>
                             <include>org.apache.hadoop:hadoop-auth</include>
                             <include>org.apache.falcon:*</include>
+                            <include>org.apache.commons:*</include>
                             <include>commons-logging:*</include>
                             <include>commons-net:*</include>
                             <include>commons-codec:*</include>
