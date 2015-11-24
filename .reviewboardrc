@@ -14,6 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Command line tools that allow you to create/update reivew requests
+# use this file. One such tool is https://www.reviewboard.org/downloads/rbtools/
+# Another available at https://github.com/prongs/apache-dev-tool
+# Both tools allow you to create and update review requests with one command
+# The second one adds a bunch of intelligence over the first tool
 
 REVIEWBOARD_URL = "https://reviews.apache.org/"
 REPOSITORY = "falcon-git"
