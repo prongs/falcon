@@ -32,8 +32,8 @@ import org.apache.falcon.execution.FalconExecutionService;
 import org.apache.falcon.resource.APIResult;
 import org.apache.falcon.resource.InstancesResult;
 import org.apache.falcon.resource.InstancesSummaryResult;
+import org.apache.falcon.state.EntityID;
 import org.apache.falcon.state.EntityState;
-import org.apache.falcon.state.ID;
 import org.apache.falcon.state.InstanceState;
 import org.apache.falcon.state.store.AbstractStateStore;
 import org.apache.falcon.state.store.StateStore;
@@ -86,18 +86,18 @@ public class FalconWorkflowEngine extends AbstractWorkflowEngine {
 
     @Override
     public boolean isActive(Entity entity) throws FalconException {
-        return STATE_STORE.getEntity(new ID(entity)).getCurrentState() != EntityState.STATE.SUBMITTED;
+        return STATE_STORE.getEntity(new EntityID(entity)).getCurrentState() != EntityState.STATE.SUBMITTED;
     }
 
     @Override
     public boolean isSuspended(Entity entity) throws FalconException {
-        return STATE_STORE.getEntity(new ID(entity))
+        return STATE_STORE.getEntity(new EntityID(entity))
                 .getCurrentState().equals(EntityState.STATE.SUSPENDED);
     }
 
     @Override
     public boolean isCompleted(Entity entity) throws FalconException {
-        throw new FalconException("Not yet implemented.");
+        return STATE_STORE.isEntityCompleted(new EntityID(entity));
     }
 
     @Override
@@ -361,6 +361,11 @@ public class FalconWorkflowEngine extends AbstractWorkflowEngine {
         instances[0] = DAGEngineFactory.getDAGEngine(cluster).info(jobId);
         result.setInstances(instances);
         return result;
+    }
+
+    @Override
+    public Boolean isWorkflowKilledByUser(String cluster, String jobId) throws FalconException {
+        throw new UnsupportedOperationException("Not yet Implemented");
     }
 }
 

@@ -19,7 +19,6 @@ package org.apache.falcon.execution;
 
 import org.apache.falcon.FalconException;
 import org.apache.falcon.cluster.util.EmbeddedCluster;
-import org.apache.falcon.entity.AbstractTestBase;
 import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.entity.v0.EntityType;
 import org.apache.falcon.entity.v0.Frequency;
@@ -36,11 +35,16 @@ import org.apache.falcon.notification.service.impl.DataAvailabilityService;
 import org.apache.falcon.notification.service.impl.JobCompletionService;
 import org.apache.falcon.notification.service.impl.SchedulerService;
 import org.apache.falcon.service.Services;
+import org.apache.falcon.state.AbstractSchedulerTestBase;
+import org.apache.falcon.state.EntityClusterID;
+import org.apache.falcon.state.EntityID;
 import org.apache.falcon.state.EntityState;
 import org.apache.falcon.state.ID;
+import org.apache.falcon.state.InstanceID;
 import org.apache.falcon.state.InstanceState;
 import org.apache.falcon.state.store.AbstractStateStore;
-import org.apache.falcon.state.store.InMemoryStateStore;
+import org.apache.falcon.state.store.StateStore;
+import org.apache.falcon.state.store.service.FalconJPAService;
 import org.apache.falcon.util.StartupProperties;
 import org.apache.falcon.workflow.engine.DAGEngine;
 import org.apache.falcon.workflow.engine.DAGEngineFactory;
@@ -56,6 +60,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -65,32 +70,38 @@ import java.util.Iterator;
 /**
  * Tests the API of FalconExecution Service and in turn the FalconExecutionService.get()s.
  */
-public class FalconExecutionServiceTest extends AbstractTestBase {
+public class FalconExecutionServiceTest extends AbstractSchedulerTestBase {
 
-    private InMemoryStateStore stateStore = null;
+    private StateStore stateStore = null;
     private AlarmService mockTimeService;
     private DataAvailabilityService mockDataService;
     private SchedulerService mockSchedulerService;
     private JobCompletionService mockCompletionService;
     private DAGEngine dagEngine;
     private int instanceCount = 0;
+    private static FalconJPAService falconJPAService = FalconJPAService.get();
 
     @BeforeClass
     public void init() throws Exception {
         this.dfsCluster = EmbeddedCluster.newCluster("testCluster");
         this.conf = dfsCluster.getConf();
         setupServices();
+        super.setup();
+        createDB(DB_SQL_FILE);
+        falconJPAService.init();
         setupConfigStore();
     }
 
     @AfterClass
-    public void tearDown() {
+    public void tearDown() throws FalconException, IOException {
+        super.cleanup();
         this.dfsCluster.shutdown();
+        falconJPAService.destroy();
     }
 
     // State store is set up to sync with Config Store. That gets tested too.
     public void setupConfigStore() throws Exception {
-        stateStore = (InMemoryStateStore) AbstractStateStore.get();
+        stateStore = AbstractStateStore.get();
         getStore().registerListener(stateStore);
         storeEntity(EntityType.CLUSTER, "testCluster");
         storeEntity(EntityType.FEED, "clicksFeed");
@@ -135,7 +146,7 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
         storeEntity(EntityType.PROCESS, "summarize1");
         Process process = getStore().get(EntityType.PROCESS, "summarize1");
         Assert.assertNotNull(process);
-        ID processKey = new ID(process);
+        EntityID processKey = new EntityID(process);
         String clusterName = dfsCluster.getCluster().getName();
 
         // Schedule a process
@@ -157,6 +168,7 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
         FalconExecutionService.get().onEvent(event);
 
         // Ensure the instance is ready for execution
+        instance = stateStore.getExecutionInstance(new InstanceID(instance.getInstance()));
         Assert.assertEquals(instance.getCurrentState(), InstanceState.STATE.READY);
 
         // Simulate a scheduled notification
@@ -183,10 +195,12 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
         Process process = getStore().get(EntityType.PROCESS, "summarize2");
         Assert.assertNotNull(process);
         String clusterName = dfsCluster.getCluster().getName();
-        ID processID = new ID(process, clusterName);
+        EntityID processID = new EntityID(process);
+        EntityClusterID executorID = new EntityClusterID(process, clusterName);
 
         // Schedule a process
-        Assert.assertEquals(stateStore.getEntity(processID).getCurrentState(), EntityState.STATE.SUBMITTED);
+        Assert.assertEquals(stateStore.getEntity(processID).getCurrentState(),
+                EntityState.STATE.SUBMITTED);
         FalconExecutionService.get().schedule(process);
 
         // Simulate two time notifications
@@ -206,21 +220,28 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
         FalconExecutionService.get().onEvent(event);
 
         // One in ready and one in waiting. Both should be suspended.
+        instance1 = stateStore.getExecutionInstance(new InstanceID(instance1.getInstance()));
         Assert.assertEquals(instance1.getCurrentState(), InstanceState.STATE.READY);
         Assert.assertEquals(instance1.getInstance().getAwaitingPredicates().size(), 0);
         Assert.assertEquals(instance2.getCurrentState(), InstanceState.STATE.WAITING);
 
         FalconExecutionService.get().suspend(process);
 
+        instance1 = stateStore.getExecutionInstance(new InstanceID(instance1.getInstance()));
+        instance2 = stateStore.getExecutionInstance(new InstanceID(instance2.getInstance()));
         Assert.assertEquals(instance1.getCurrentState(), InstanceState.STATE.SUSPENDED);
         Assert.assertEquals(instance2.getCurrentState(), InstanceState.STATE.SUSPENDED);
         Mockito.verify(mockDataService).unregister(FalconExecutionService.get(),
                 instance1.getInstance().getId());
         Mockito.verify(mockDataService).unregister(FalconExecutionService.get(),
                 instance2.getInstance().getId());
-        Mockito.verify(mockTimeService).unregister(FalconExecutionService.get(), processID);
+        Mockito.verify(mockTimeService).unregister(FalconExecutionService.get(), executorID);
+
+        Mockito.verify(mockDataService).unregister(FalconExecutionService.get(), executorID);
 
         FalconExecutionService.get().resume(process);
+        instance1 = stateStore.getExecutionInstance(new InstanceID(instance1.getInstance()));
+        instance2 = stateStore.getExecutionInstance(new InstanceID(instance2.getInstance()));
         Assert.assertEquals(instance1.getCurrentState(), InstanceState.STATE.READY);
         Assert.assertEquals(instance2.getCurrentState(), InstanceState.STATE.WAITING);
 
@@ -232,17 +253,22 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
         FalconExecutionService.get().onEvent(event);
 
         // One in running and the other in ready. Both should be suspended
+        instance1 = stateStore.getExecutionInstance(new InstanceID(instance1.getInstance()));
         Assert.assertEquals(instance1.getCurrentState(), InstanceState.STATE.RUNNING);
         Mockito.when(dagEngine.isScheduled(instance1.getInstance())).thenReturn(true);
+        instance2 = stateStore.getExecutionInstance(new InstanceID(instance2.getInstance()));
         Assert.assertEquals(instance2.getCurrentState(), InstanceState.STATE.READY);
 
         FalconExecutionService.get().suspend(process);
 
+        instance1 = stateStore.getExecutionInstance(new InstanceID(instance1.getInstance()));
+        instance2 = stateStore.getExecutionInstance(new InstanceID(instance2.getInstance()));
         Assert.assertEquals(instance1.getCurrentState(), InstanceState.STATE.SUSPENDED);
         Assert.assertEquals(instance2.getCurrentState(), InstanceState.STATE.SUSPENDED);
 
         FalconExecutionService.get().resume(process);
-
+        instance1 = stateStore.getExecutionInstance(new InstanceID(instance1.getInstance()));
+        instance2 = stateStore.getExecutionInstance(new InstanceID(instance2.getInstance()));
         Assert.assertEquals(instance1.getCurrentState(), InstanceState.STATE.RUNNING);
         Assert.assertEquals(instance2.getCurrentState(), InstanceState.STATE.READY);
 
@@ -250,6 +276,7 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
         event = createEvent(NotificationServicesRegistry.SERVICE.JOB_COMPLETION, instance1.getInstance());
         FalconExecutionService.get().onEvent(event);
 
+        instance1 = stateStore.getExecutionInstance(new InstanceID(instance1.getInstance()));
         Assert.assertEquals(instance1.getCurrentState(), InstanceState.STATE.SUCCEEDED);
     }
 
@@ -260,8 +287,8 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
         Process process = getStore().get(EntityType.PROCESS, "summarize4");
         Assert.assertNotNull(process);
         String clusterName = dfsCluster.getCluster().getName();
-        ID processID = new ID(process, clusterName);
-
+        EntityID processID = new EntityID(process);
+        EntityClusterID executorID = new EntityClusterID(process, clusterName);
         // Schedule a process
         Assert.assertEquals(stateStore.getEntity(processID).getCurrentState(), EntityState.STATE.SUBMITTED);
         FalconExecutionService.get().schedule(process);
@@ -289,6 +316,9 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
         FalconExecutionService.get().onEvent(event);
 
         // One in ready, one in waiting and one running.
+        instance1 = stateStore.getExecutionInstance(new InstanceID(instance1.getInstance()));
+        instance2 = stateStore.getExecutionInstance(new InstanceID(instance2.getInstance()));
+        instance3 = stateStore.getExecutionInstance(new InstanceID(instance3.getInstance()));
         Assert.assertEquals(instance1.getCurrentState(), InstanceState.STATE.RUNNING);
         Assert.assertEquals(instance2.getCurrentState(), InstanceState.STATE.READY);
         Assert.assertEquals(instance3.getCurrentState(), InstanceState.STATE.WAITING);
@@ -296,7 +326,7 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
         FalconExecutionService.get().delete(process);
 
         // Deregister from notification services
-        Mockito.verify(mockTimeService).unregister(FalconExecutionService.get(), processID);
+        Mockito.verify(mockTimeService).unregister(FalconExecutionService.get(), executorID);
     }
 
     @Test
@@ -305,7 +335,7 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
         Process process = getStore().get(EntityType.PROCESS, "summarize3");
         Assert.assertNotNull(process);
         String clusterName = dfsCluster.getCluster().getName();
-        ID processID = new ID(process, clusterName);
+        EntityID processID = new EntityID(process);
 
         // Schedule a process
         Assert.assertEquals(stateStore.getEntity(processID).getCurrentState(), EntityState.STATE.SUBMITTED);
@@ -324,6 +354,7 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
 
         FalconExecutionService.get().onEvent(dataEvent);
 
+        instanceState = stateStore.getExecutionInstance(new InstanceID(instanceState.getInstance()));
         Assert.assertEquals(instanceState.getCurrentState(), InstanceState.STATE.TIMED_OUT);
     }
 
@@ -334,7 +365,7 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
         Process process = getStore().get(EntityType.PROCESS, "summarize6");
         Assert.assertNotNull(process);
         String clusterName = dfsCluster.getCluster().getName();
-        ID processID = new ID(process, clusterName);
+        EntityID processID = new EntityID(process);
 
         // Schedule a process
         Assert.assertEquals(stateStore.getEntity(processID).getCurrentState(), EntityState.STATE.SUBMITTED);
@@ -356,7 +387,7 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
         Process process = getStore().get(EntityType.PROCESS, "summarize5");
         Assert.assertNotNull(process);
         String clusterName = dfsCluster.getCluster().getName();
-        ID processID = new ID(process, clusterName);
+        EntityID processID = new EntityID(process);
 
         // Schedule a process
         Assert.assertEquals(stateStore.getEntity(processID).getCurrentState(), EntityState.STATE.SUBMITTED);
@@ -385,6 +416,9 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
         FalconExecutionService.get().onEvent(event);
 
         // One in ready, one in waiting and one running.
+        instance1 = stateStore.getExecutionInstance(new InstanceID(instance1.getInstance()));
+        instance2 = stateStore.getExecutionInstance(new InstanceID(instance2.getInstance()));
+        instance3 = stateStore.getExecutionInstance(new InstanceID(instance3.getInstance()));
         Assert.assertEquals(instance1.getCurrentState(), InstanceState.STATE.RUNNING);
         Assert.assertEquals(instance2.getCurrentState(), InstanceState.STATE.READY);
         Assert.assertEquals(instance3.getCurrentState(), InstanceState.STATE.WAITING);
@@ -434,10 +468,12 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
         Process process = getStore().get(EntityType.PROCESS, "summarize7");
         Assert.assertNotNull(process);
         String clusterName = dfsCluster.getCluster().getName();
-        ID processID = new ID(process, clusterName);
+        EntityID processID = new EntityID(process);
 
         // Store couple of instances in store
-        stateStore.getEntity(processID).setCurrentState(EntityState.STATE.SCHEDULED);
+        EntityState entityState = stateStore.getEntity(processID);
+        entityState.setCurrentState(EntityState.STATE.SCHEDULED);
+        stateStore.updateEntity(entityState);
         ProcessExecutionInstance instance1 = new ProcessExecutionInstance(process,
                 new DateTime(System.currentTimeMillis() - 60 * 60 * 1000), clusterName);
         InstanceState instanceState1 = new InstanceState(instance1);
@@ -454,11 +490,13 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
         // Simulate a scheduled notification. This should cause the reload from state store
         Event event = createEvent(NotificationServicesRegistry.SERVICE.JOB_SCHEDULE, instanceState2.getInstance());
         FalconExecutionService.get().onEvent(event);
+        instanceState2 = stateStore.getExecutionInstance(new InstanceID(instanceState2.getInstance()));
         Assert.assertEquals(instanceState2.getCurrentState(), InstanceState.STATE.RUNNING);
 
         // Simulate a Job completion notification and ensure the instance resumes from where it left
         event = createEvent(NotificationServicesRegistry.SERVICE.JOB_COMPLETION, instanceState1.getInstance());
         FalconExecutionService.get().onEvent(event);
+        instanceState1 = stateStore.getExecutionInstance(new InstanceID(instanceState1.getInstance()));
         Assert.assertEquals(instanceState1.getCurrentState(), InstanceState.STATE.SUCCEEDED);
     }
 
@@ -468,7 +506,7 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
         Process process = getStore().get(EntityType.PROCESS, name);
         Assert.assertNotNull(process);
         String clusterName = dfsCluster.getCluster().getName();
-        ID processID = new ID(process, clusterName);
+        EntityID processID = new EntityID(process);
 
         // Schedule the process
         FalconExecutionService.get().schedule(process);
@@ -495,6 +533,8 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
             Assert.fail("Exception expected.");
         } catch (Exception e) {
             // One instance must fail and the other not
+            instanceState1 = stateStore.getExecutionInstance(new InstanceID(instanceState1.getInstance()));
+            instanceState2 = stateStore.getExecutionInstance(new InstanceID(instanceState2.getInstance()));
             Assert.assertEquals(instanceState2.getCurrentState(), state);
             Assert.assertEquals(instanceState1.getCurrentState(), InstanceState.STATE.RUNNING);
         }
@@ -503,6 +543,8 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
         ((MockDAGEngine)dagEngine).removeFailInstance(instance1);
         m.invoke(FalconExecutionService.get(), process);
 
+        instanceState1 = stateStore.getExecutionInstance(new InstanceID(instanceState1.getInstance()));
+        instanceState2 = stateStore.getExecutionInstance(new InstanceID(instanceState2.getInstance()));
         // Both instances must be in expected state.
         Assert.assertEquals(instanceState2.getCurrentState(), state);
         Assert.assertEquals(instanceState1.getCurrentState(), state);
@@ -517,7 +559,7 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
     }
 
     private Event createEvent(NotificationServicesRegistry.SERVICE type, Process process, String cluster) {
-        ID id = new ID(process, cluster);
+        EntityClusterID id = new EntityClusterID(process, cluster);
         switch (type) {
         case TIME:
             Date start = process.getClusters().getClusters().get(0).getValidity().getStart();
@@ -536,7 +578,7 @@ public class FalconExecutionServiceTest extends AbstractTestBase {
     }
 
     private Event createEvent(NotificationServicesRegistry.SERVICE type, ExecutionInstance instance) {
-        ID id = new ID(instance);
+        ID id = new InstanceID(instance);
         switch (type) {
         case DATA:
             DataEvent dataEvent = new DataEvent(id, new Path("/projects/falcon/clicks"), LocationType.DATA,

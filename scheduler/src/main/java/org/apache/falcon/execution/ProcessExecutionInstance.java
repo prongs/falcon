@@ -36,7 +36,7 @@ import org.apache.falcon.notification.service.event.JobCompletedEvent;
 import org.apache.falcon.notification.service.event.JobScheduledEvent;
 import org.apache.falcon.notification.service.impl.DataAvailabilityService;
 import org.apache.falcon.predicate.Predicate;
-import org.apache.falcon.state.ID;
+import org.apache.falcon.state.InstanceID;
 import org.apache.falcon.util.RuntimeProperties;
 import org.apache.falcon.workflow.engine.DAGEngine;
 import org.apache.falcon.workflow.engine.DAGEngineFactory;
@@ -49,6 +49,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+
 /**
  * Represents an execution instance of a process.
  * Responsible for user actions such as suspend, resume, kill on individual instances.
@@ -57,10 +58,10 @@ import java.util.List;
 public class ProcessExecutionInstance extends ExecutionInstance {
     private static final Logger LOG = LoggerFactory.getLogger(ProcessExecutionInstance.class);
     private final Process process;
-    private List<Predicate> awaitedPredicates = new ArrayList<Predicate>();
+    private List<Predicate> awaitedPredicates = new ArrayList<>();
     private DAGEngine dagEngine = null;
     private boolean hasTimedOut = false;
-    private ID id;
+    private InstanceID id;
     private int instanceSequence;
     private final FalconExecutionService executionService = FalconExecutionService.get();
 
@@ -72,16 +73,28 @@ public class ProcessExecutionInstance extends ExecutionInstance {
      * @param cluster
      * @throws FalconException
      */
-    public ProcessExecutionInstance(Process process, DateTime instanceTime, String cluster) throws FalconException {
-        super(instanceTime, cluster);
+    public ProcessExecutionInstance(Process process, DateTime instanceTime, String cluster,
+                                    DateTime creationTime) throws FalconException {
+        super(instanceTime, cluster, creationTime);
         this.process = process;
-        this.id = new ID(process, cluster, getInstanceTime());
+        this.id = new InstanceID(process, cluster, getInstanceTime());
         computeInstanceSequence();
         dagEngine = DAGEngineFactory.getDAGEngine(cluster);
         registerForNotifications(false);
     }
 
-    // Computes the instance number based on the nominal time.
+    /**
+     *
+     * @param process
+     * @param instanceTime
+     * @param cluster
+     * @throws FalconException
+     */
+    public ProcessExecutionInstance(Process process, DateTime instanceTime, String cluster) throws FalconException {
+        this(process, instanceTime, cluster, DateTime.now(UTC));
+    }
+
+    // Computes the instance number based on the instance Time.
     // Method can be extended to assign instance numbers for non-time based instances.
     private void computeInstanceSequence() {
         for (Cluster processCluster : process.getClusters().getClusters()) {
@@ -210,7 +223,7 @@ public class ProcessExecutionInstance extends ExecutionInstance {
     }
 
     @Override
-    public ID getId() {
+    public InstanceID getId() {
         return id;
     }
 
@@ -225,8 +238,18 @@ public class ProcessExecutionInstance extends ExecutionInstance {
     }
 
     @Override
-    public List<Predicate> getAwaitingPredicates() throws FalconException {
+    public void setAwaitingPredicates(List<Predicate> predicates) {
+        this.awaitedPredicates = predicates;
+    }
+
+    @Override
+    public List<Predicate> getAwaitingPredicates() {
         return awaitedPredicates;
+    }
+
+    @Override
+    public void setInstanceSequence(int sequence) {
+        this.instanceSequence = sequence;
     }
 
     @Override
@@ -242,7 +265,7 @@ public class ProcessExecutionInstance extends ExecutionInstance {
         // Was already scheduled on the DAGEngine, so resume on DAGEngine if suspended
         if (getExternalID() != null) {
             dagEngine.resume(this);
-        } else if (awaitedPredicates.size() != 0) {
+        } else if (awaitedPredicates != null && !awaitedPredicates.isEmpty()) {
             // Evaluate any remaining predicates
             registerForNotifications(true);
         }
@@ -268,6 +291,31 @@ public class ProcessExecutionInstance extends ExecutionInstance {
             // TODO : Should timeout = 0 have a special meaning or should it be disallowed?
             return SchedulerUtil.getFrequencyInMillis(DateTime.now(), process.getTimeout());
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || !o.getClass().equals(this.getClass())) {
+            return false;
+        }
+
+        ProcessExecutionInstance processExecutionInstance = (ProcessExecutionInstance) o;
+
+        return  this.getId().equals(processExecutionInstance.getId())
+                && Predicate.isEqualAwaitingPredicates(this.getAwaitingPredicates(),
+                    processExecutionInstance.getAwaitingPredicates())
+                && this.getInstanceSequence() == (processExecutionInstance.getInstanceSequence());
+    }
+
+    @Override
+    public int hashCode() {
+        int result = id != null ? id.hashCode() : 0;
+        result = 31 * result + (awaitedPredicates != null ? awaitedPredicates.hashCode() : 0);
+        result = 31 * result + instanceSequence;
+        return result;
     }
 
     @Override

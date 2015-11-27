@@ -22,11 +22,13 @@ import org.apache.falcon.FalconException;
 import org.apache.falcon.entity.EntityUtil;
 import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.entity.v0.process.Process;
+import org.apache.falcon.exception.StateStoreException;
 import org.apache.falcon.notification.service.event.Event;
 import org.apache.falcon.service.FalconService;
+import org.apache.falcon.state.EntityClusterID;
 import org.apache.falcon.state.EntityState;
 import org.apache.falcon.state.EntityStateChangeHandler;
-import org.apache.falcon.state.ID;
+import org.apache.falcon.state.InstanceID;
 import org.apache.falcon.state.StateService;
 import org.apache.falcon.state.store.AbstractStateStore;
 import org.slf4j.Logger;
@@ -45,7 +47,7 @@ public final class FalconExecutionService implements FalconService, EntityStateC
     private static final Logger LOG = LoggerFactory.getLogger(FalconExecutionService.class);
 
     // Stores all entity executors in memory
-    private ConcurrentMap<ID, EntityExecutor> executors = new ConcurrentHashMap<ID, EntityExecutor>();
+    private ConcurrentMap<EntityClusterID, EntityExecutor> executors = new ConcurrentHashMap<>();
 
     private static FalconExecutionService executionService = new FalconExecutionService();
 
@@ -57,17 +59,22 @@ public final class FalconExecutionService implements FalconService, EntityStateC
     public void init() {
         LOG.debug("State store instance being used : {}", AbstractStateStore.get());
         // Initialize all executors from store
-        for (Entity entity : AbstractStateStore.get().getEntities(EntityState.STATE.SCHEDULED)) {
-            try {
-                for (String cluster : EntityUtil.getClustersDefinedInColos(entity)) {
-                    EntityExecutor executor = createEntityExecutor(entity, cluster);
-                    executors.put(new ID(entity, cluster), executor);
-                    executor.schedule();
+        try {
+            for (Entity entity : AbstractStateStore.get().getEntities(EntityState.STATE.SCHEDULED)) {
+                try {
+                    for (String cluster : EntityUtil.getClustersDefinedInColos(entity)) {
+                        EntityExecutor executor = createEntityExecutor(entity, cluster);
+                        executors.put(new EntityClusterID(entity, cluster), executor);
+                        executor.schedule();
+                    }
+                } catch (FalconException e) {
+                    LOG.error("Unable to load entity : " + entity.getName(), e);
+                    throw new RuntimeException(e);
                 }
-            } catch (FalconException e) {
-                LOG.error("Unable to load entity : " + entity.getName(), e);
-                throw new RuntimeException(e);
             }
+        } catch (StateStoreException e) {
+            LOG.error("Unable to get Entities from State Store ", e);
+            throw new RuntimeException(e);
         }
         // TODO : During migration, the state store itself may not have been completely bootstrapped.
     }
@@ -108,12 +115,21 @@ public final class FalconExecutionService implements FalconService, EntityStateC
     @Override
     public void onEvent(Event event) throws FalconException {
         // Currently, simply passes along the event to the appropriate executor
-        EntityExecutor executor = executors.get(event.getTarget().getEntityID());
-        if (executor == null) {
-            // The executor has gone away, throw an exception so the notification service knows
-            throw new FalconException("Target executor for " + event.getTarget().getEntityID() + " does not exist.");
+        EntityClusterID id = null;
+        if (event.getTarget() instanceof EntityClusterID) {
+            id = (EntityClusterID) event.getTarget();
+        } else if (event.getTarget() instanceof InstanceID) {
+            id = ((InstanceID) event.getTarget()).getEntityClusterID();
         }
-        executor.onEvent(event);
+
+        if (id != null) {
+            EntityExecutor executor = executors.get(id);
+            if (executor == null) {
+                // The executor has gone away, throw an exception so the notification service knows
+                throw new FalconException("Target executor for " + event.getTarget() + " does not exist.");
+            }
+            executor.onEvent(event);
+        }
     }
 
     @Override
@@ -125,7 +141,7 @@ public final class FalconExecutionService implements FalconService, EntityStateC
     public void onSchedule(Entity entity) throws FalconException {
         for (String cluster : EntityUtil.getClustersDefinedInColos(entity)) {
             EntityExecutor executor = createEntityExecutor(entity, cluster);
-            ID id = new ID(entity, cluster);
+            EntityClusterID id = new EntityClusterID(entity, cluster);
             executors.put(id, executor);
             LOG.info("Scheduling entity {}.", id);
             executor.schedule();
@@ -144,7 +160,7 @@ public final class FalconExecutionService implements FalconService, EntityStateC
     public void onResume(Entity entity) throws FalconException {
         for (String cluster : EntityUtil.getClustersDefinedInColos(entity)) {
             EntityExecutor executor = createEntityExecutor(entity, cluster);
-            executors.put(new ID(entity, cluster), executor);
+            executors.put(new EntityClusterID(entity, cluster), executor);
             LOG.info("Resuming entity, {} of type {} on cluster {}.", entity.getName(),
                     entity.getEntityType(), cluster);
             executor.resumeAll();
@@ -204,11 +220,11 @@ public final class FalconExecutionService implements FalconService, EntityStateC
      * @throws FalconException
      */
     public EntityExecutor getEntityExecutor(Entity entity, String cluster) throws FalconException {
-        ID id = new ID(entity, cluster);
+        EntityClusterID id = new EntityClusterID(entity, cluster);
         if (executors.containsKey(id)) {
             return executors.get(id);
         } else {
-            throw new FalconException("Entity executor for entity : " + id.getEntityKey() + " does not exist.");
+            throw new FalconException("Entity executor for entity cluster key : " + id.getKey() + " does not exist.");
         }
     }
 }

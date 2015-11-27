@@ -1302,7 +1302,7 @@ public class OozieWorkflowEngine extends AbstractWorkflowEngine {
                             coord.getId(), SchemaHelper.formatDateUTC(pauseTime));
                     change(cluster, coord.getId(), concurrency, null, SchemaHelper.formatDateUTC(pauseTime));
                 }
-                change(cluster, coord.getId(), concurrency, endTime, "");
+                change(cluster, coord.getId(), concurrency, endTime, null);
             }
         }
     }
@@ -1651,5 +1651,45 @@ public class OozieWorkflowEngine extends AbstractWorkflowEngine {
         } catch (Exception e) {
             throw new FalconException(e);
         }
+    }
+
+    @Override
+    public Boolean isWorkflowKilledByUser(String cluster, String jobId) throws FalconException {
+        // In case of a failure, the Oozie action has an errorCode.
+        // In case of no errorCode in any of the actions would mean its killed by user
+        try {
+            // Check for error code in all the actions in main workflow
+            OozieClient oozieClient = OozieClientFactory.get(cluster);
+            List<WorkflowAction> wfActions = oozieClient.getJobInfo(jobId).getActions();
+            for (WorkflowAction subWfAction : wfActions) {
+                if (StringUtils.isNotEmpty(subWfAction.getErrorCode())) {
+                    return false;
+                }
+            }
+            // Assumption taken, there are no sub workflows in user action.
+            String subWfId = getUserWorkflowAction(wfActions);
+            List<WorkflowAction> subWfActions;
+            // Check for error code in all the user-workflow(sub-workflow)'s actions.
+            if (StringUtils.isNotBlank(subWfId)) {
+                subWfActions = oozieClient.getJobInfo(subWfId).getActions();
+                for (WorkflowAction subWfAction : subWfActions) {
+                    if (StringUtils.isNotEmpty(subWfAction.getErrorCode())) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        } catch (Exception e) {
+            throw new FalconException(e);
+        }
+    }
+
+    private String getUserWorkflowAction(List<WorkflowAction> actionsList){
+        for (WorkflowAction wfAction : actionsList) {
+            if (StringUtils.equals(wfAction.getName(), "user-action")) {
+                return wfAction.getExternalId();
+            }
+        }
+        return null;
     }
 }

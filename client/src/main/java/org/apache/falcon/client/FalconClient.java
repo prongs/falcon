@@ -377,6 +377,7 @@ public class FalconClient extends AbstractFalconClient {
         return parseAPIResult(clientResponse);
     }
 
+    @Override
     public APIResult submitAndSchedule(String entityType, String filePath,
                                        Boolean skipDryRun, String doAsUser, String properties)
         throws FalconCLIException {
@@ -439,6 +440,7 @@ public class FalconClient extends AbstractFalconClient {
         return clientResponse.getEntity(TriageResult.class);
     }
 
+    @Override
     public EntityList getEntityList(String entityType, String fields, String nameSubsequence, String tagKeywords,
                                     String filterBy, String filterTags, String orderBy, String sortOrder,
                                     Integer offset, Integer numResults, String doAsUser) throws FalconCLIException {
@@ -446,6 +448,7 @@ public class FalconClient extends AbstractFalconClient {
                 filterTags, orderBy, sortOrder, offset, numResults, doAsUser);
     }
 
+    @Override
     public EntitySummaryResult getEntitySummary(String entityType, String cluster, String start, String end,
                                    String fields, String filterBy, String filterTags,
                                    String orderBy, String sortOrder,
@@ -455,6 +458,7 @@ public class FalconClient extends AbstractFalconClient {
                 orderBy, sortOrder, offset, numResults, numInstances, doAsUser);
     }
 
+    @Override
     public APIResult touch(String entityType, String entityName, String colo,
                            Boolean skipDryRun, String doAsUser) throws FalconCLIException {
         Entities operation = Entities.TOUCH;
@@ -595,6 +599,7 @@ public class FalconClient extends AbstractFalconClient {
         return sendAdminRequest(AdminOperations.STACK, doAsUser);
     }
 
+    @Override
     public String getVersion(String doAsUser) throws FalconCLIException {
         return sendAdminRequest(AdminOperations.VERSION, doAsUser);
     }
@@ -1097,21 +1102,37 @@ public class FalconClient extends AbstractFalconClient {
         return sendMetadataLineageRequest(MetadataOperations.EDGES, id, doAsUser);
     }
 
+    private String getRecipePath(String recipePropertiesFile) throws FalconCLIException {
+        String recipePath = null;
+        if (StringUtils.isNotBlank(recipePropertiesFile)) {
+            File file = new File(recipePropertiesFile);
+            if (file.exists()) {
+                recipePath = file.getAbsoluteFile().getParentFile().getAbsolutePath();
+            }
+        } else {
+            recipePath = clientProperties.getProperty("falcon.recipe.path");
+        }
+
+        return recipePath;
+    }
+
     public APIResult submitRecipe(String recipeName,
                                   String recipeToolClassName,
                                   final String recipeOperation,
+                                  String recipePropertiesFile,
                                   Boolean skipDryRun,
                                   final String doAsUser) throws FalconCLIException {
-        String recipePath = clientProperties.getProperty("falcon.recipe.path");
+        String recipePath = getRecipePath(recipePropertiesFile);
 
         if (StringUtils.isEmpty(recipePath)) {
-            throw new FalconCLIException("falcon.recipe.path is not set in client.properties");
+            throw new FalconCLIException("falcon.recipe.path is not set in client.properties or properties "
+                    + " file is not provided");
         }
 
-        String recipeFilePath = recipePath + File.separator + recipeName + TEMPLATE_SUFFIX;
-        File file = new File(recipeFilePath);
+        String templateFilePath = recipePath + File.separator + recipeName + TEMPLATE_SUFFIX;
+        File file = new File(templateFilePath);
         if (!file.exists()) {
-            throw new FalconCLIException("Recipe template file does not exist : " + recipeFilePath);
+            throw new FalconCLIException("Recipe template file does not exist : " + templateFilePath);
         }
 
         String propertiesFilePath = recipePath + File.separator + recipeName + PROPERTIES_SUFFIX;
@@ -1134,7 +1155,7 @@ public class FalconClient extends AbstractFalconClient {
 
             processFile = f.getAbsolutePath();
             String[] args = {
-                "-" + RecipeToolArgs.RECIPE_FILE_ARG.getName(), recipeFilePath,
+                "-" + RecipeToolArgs.RECIPE_FILE_ARG.getName(), templateFilePath,
                 "-" + RecipeToolArgs.RECIPE_PROPERTIES_FILE_ARG.getName(), propertiesFilePath,
                 "-" + RecipeToolArgs.RECIPE_PROCESS_XML_FILE_PATH_ARG.getName(), processFile,
                 "-" + RecipeToolArgs.RECIPE_OPERATION_ARG.getName(), recipeOperation,

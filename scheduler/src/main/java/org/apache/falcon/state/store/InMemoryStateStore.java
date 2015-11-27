@@ -21,8 +21,10 @@ import com.google.common.collect.Lists;
 import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.exception.StateStoreException;
 import org.apache.falcon.execution.ExecutionInstance;
+import org.apache.falcon.state.EntityClusterID;
+import org.apache.falcon.state.EntityID;
 import org.apache.falcon.state.EntityState;
-import org.apache.falcon.state.ID;
+import org.apache.falcon.state.InstanceID;
 import org.apache.falcon.state.InstanceState;
 import org.joda.time.DateTime;
 
@@ -48,8 +50,7 @@ public final class InMemoryStateStore extends AbstractStateStore {
 
     private static final StateStore STORE = new InMemoryStateStore();
 
-    private InMemoryStateStore() {
-    }
+    private InMemoryStateStore() {}
 
     public static StateStore get() {
         return STORE;
@@ -57,7 +58,7 @@ public final class InMemoryStateStore extends AbstractStateStore {
 
     @Override
     public void putEntity(EntityState entityState) throws StateStoreException {
-        String key = new ID(entityState.getEntity()).getEntityKey();
+        String key = new EntityID(entityState.getEntity()).getKey();
         if (entityStates.containsKey(key)) {
             throw new StateStoreException("Entity with key, " + key + " already exists.");
         }
@@ -65,16 +66,16 @@ public final class InMemoryStateStore extends AbstractStateStore {
     }
 
     @Override
-    public EntityState getEntity(ID entityId) throws StateStoreException {
-        if (!entityStates.containsKey(entityId.getEntityKey())) {
+    public EntityState getEntity(EntityID entityId) throws StateStoreException {
+        if (!entityStates.containsKey(entityId.getKey())) {
             throw new StateStoreException("Entity with key, " + entityId + " does not exist.");
         }
-        return entityStates.get(entityId.getEntityKey());
+        return entityStates.get(entityId.getKey());
     }
 
     @Override
-    public boolean entityExists(ID entityId) {
-        return entityStates.containsKey(entityId.getEntityKey());
+    public boolean entityExists(EntityID entityId) {
+        return entityStates.containsKey(entityId.getKey());
     }
 
     @Override
@@ -95,7 +96,7 @@ public final class InMemoryStateStore extends AbstractStateStore {
 
     @Override
     public void updateEntity(EntityState entityState) throws StateStoreException {
-        String key = new ID(entityState.getEntity()).getEntityKey();
+        String key = new EntityID(entityState.getEntity()).getKey();
         if (!entityStates.containsKey(key)) {
             throw new StateStoreException("Entity with key, " + key + " does not exist.");
         }
@@ -103,17 +104,28 @@ public final class InMemoryStateStore extends AbstractStateStore {
     }
 
     @Override
-    public void deleteEntity(ID entityId) throws StateStoreException {
-        if (!entityStates.containsKey(entityId.getEntityKey())) {
+    public void deleteEntity(EntityID entityId) throws StateStoreException {
+        if (!entityStates.containsKey(entityId.getKey())) {
             throw new StateStoreException("Entity with key, " + entityId + " does not exist.");
         }
         deleteExecutionInstances(entityId);
-        entityStates.remove(entityId.getEntityKey());
+        entityStates.remove(entityId.getKey());
+    }
+
+    @Override
+    public void deleteEntities() throws StateStoreException {
+        entityStates.clear();
+    }
+
+    @Override
+    public boolean isEntityCompleted(EntityID entityId) {
+        // ToDo need to implement this, currently returning false.
+        return false;
     }
 
     @Override
     public void putExecutionInstance(InstanceState instanceState) throws StateStoreException {
-        String key = new ID(instanceState.getInstance()).toString();
+        String key = new InstanceID(instanceState.getInstance()).getKey();
         if (instanceStates.containsKey(key)) {
             throw new StateStoreException("Instance with key, " + key + " already exists.");
         }
@@ -121,8 +133,8 @@ public final class InMemoryStateStore extends AbstractStateStore {
     }
 
     @Override
-    public InstanceState getExecutionInstance(ID instanceId) throws StateStoreException {
-        if (!instanceStates.containsKey(instanceId.toString())) {
+    public InstanceState getExecutionInstance(InstanceID instanceId) throws StateStoreException {
+        if (!instanceStates.containsKey(instanceId.getKey())) {
             throw new StateStoreException("Instance with key, " + instanceId + " does not exist.");
         }
         return instanceStates.get(instanceId.toString());
@@ -130,7 +142,7 @@ public final class InMemoryStateStore extends AbstractStateStore {
 
     @Override
     public void updateExecutionInstance(InstanceState instanceState) throws StateStoreException {
-        String key = new ID(instanceState.getInstance()).toString();
+        String key = new InstanceID(instanceState.getInstance()).getKey();
         if (!instanceStates.containsKey(key)) {
             throw new StateStoreException("Instance with key, " + key + " does not exist.");
         }
@@ -140,11 +152,11 @@ public final class InMemoryStateStore extends AbstractStateStore {
     @Override
     public Collection<InstanceState> getAllExecutionInstances(Entity entity, String cluster)
         throws StateStoreException {
-        ID id = new ID(entity, cluster);
-        if (!entityStates.containsKey(id.getEntityKey())) {
-            throw new StateStoreException("Entity with key, " + id.getEntityKey() + " does not exist.");
+        EntityClusterID id = new EntityClusterID(entity, cluster);
+        if (!entityStates.containsKey(id.getEntityID().getKey())) {
+            throw new StateStoreException("Entity with key, " + id.getEntityID().getKey() + " does not exist.");
         }
-        Collection<InstanceState> instances = new ArrayList<InstanceState>();
+        Collection<InstanceState> instances = new ArrayList<>();
         for (Map.Entry<String, InstanceState> instanceState : instanceStates.entrySet()) {
             if (instanceState.getKey().startsWith(id.toString())) {
                 instances.add(instanceState.getValue());
@@ -156,7 +168,7 @@ public final class InMemoryStateStore extends AbstractStateStore {
     @Override
     public Collection<InstanceState> getExecutionInstances(Entity entity, String cluster,
             Collection<InstanceState.STATE> states) throws StateStoreException {
-        ID id = new ID(entity, cluster);
+        EntityClusterID id = new EntityClusterID(entity, cluster);
         return getExecutionInstances(id, states);
     }
 
@@ -164,7 +176,7 @@ public final class InMemoryStateStore extends AbstractStateStore {
     public Collection<InstanceState> getExecutionInstances(Entity entity, String cluster,
             Collection<InstanceState.STATE> states, DateTime start, DateTime end) throws StateStoreException {
         List<InstanceState> instancesToReturn = new ArrayList<>();
-        ID id = new ID(entity, cluster);
+        EntityClusterID id = new EntityClusterID(entity, cluster);
         for (InstanceState state : getExecutionInstances(id, states)) {
             ExecutionInstance instance = state.getInstance();
             DateTime instanceTime = instance.getInstanceTime();
@@ -179,9 +191,9 @@ public final class InMemoryStateStore extends AbstractStateStore {
     }
 
     @Override
-    public Collection<InstanceState> getExecutionInstances(ID entityId, Collection<InstanceState.STATE> states)
-        throws StateStoreException {
-        Collection<InstanceState> instances = new ArrayList<InstanceState>();
+    public Collection<InstanceState> getExecutionInstances(EntityClusterID entityId,
+                                       Collection<InstanceState.STATE> states) throws StateStoreException {
+        Collection<InstanceState> instances = new ArrayList<>();
         for (Map.Entry<String, InstanceState> instanceState : instanceStates.entrySet()) {
             if (instanceState.getKey().startsWith(entityId.toString())
                     && states.contains(instanceState.getValue().getCurrentState())) {
@@ -193,9 +205,9 @@ public final class InMemoryStateStore extends AbstractStateStore {
 
     @Override
     public InstanceState getLastExecutionInstance(Entity entity, String cluster) throws StateStoreException {
-        ID id = new ID(entity, cluster);
-        if (!entityStates.containsKey(id.getEntityKey())) {
-            throw new StateStoreException("Entity with key, " + id.getEntityKey() + " does not exist.");
+        EntityClusterID id = new EntityClusterID(entity, cluster);
+        if (!entityStates.containsKey(id.getEntityID().getKey())) {
+            throw new StateStoreException("Entity with key, " + id.getEntityID().getKey() + " does not exist.");
         }
         InstanceState latestState = null;
         // TODO : Very crude. Iterating over all entries and getting the last one.
@@ -208,19 +220,33 @@ public final class InMemoryStateStore extends AbstractStateStore {
     }
 
     @Override
-    public boolean executionInstanceExists(ID instanceId) {
+    public boolean executionInstanceExists(InstanceID instanceId) {
         return instanceStates.containsKey(instanceId.toString());
     }
 
     @Override
-    public void deleteExecutionInstances(ID entityId) {
+    public void deleteExecutionInstances(EntityID entityId) {
         for (String instanceKey : Lists.newArrayList(instanceStates.keySet())) {
-            if (instanceKey.startsWith(entityId.getEntityKey())) {
+            if (instanceKey.startsWith(entityId.getKey())) {
                 instanceStates.remove(instanceKey);
             }
         }
     }
 
+    @Override
+    public void deleteExecutionInstances() {
+        instanceStates.clear();
+    }
+
+    @Override
+    public void deleteExecutionInstance(InstanceID instanceID) throws StateStoreException {
+        if (!instanceStates.containsKey(instanceID.toString())) {
+            throw new StateStoreException("Instance with key, " + instanceID.toString() + " does not exist.");
+        }
+        instanceStates.remove(instanceID.toString());
+    }
+
+    @Override
     public void clear() {
         entityStates.clear();
         instanceStates.clear();

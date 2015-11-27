@@ -9,6 +9,14 @@ Trunk (Unreleased)
   INCOMPATIBLE CHANGES
 
   NEW FEATURES
+    FALCON-1480 Gather data transfer details of Hive DR. (Peeyush Bishnoi via Ajay Yadava)
+    
+    FALCON-1234 State Store for instances scheduled by Falcon (Pavan Kolamuri via Pallavi Rao)
+    
+    FALCON-1480 Gather data transfer details of Hive DR(Peeyush Bishnoi via Ajay Yadava)
+
+    FALCON-1588 Add ability to provide the path for recipe files in command line(Peeyush Bishnoi via Ajay Yadava)
+
     FALCON-1573 Supply user-defined properties to Oozie workflows during schedule(Daniel Del Castillo via Ajay Yadava)
 
     FALCON-1559 Config changes required for native scheduler (Pallavi Rao)
@@ -18,6 +26,16 @@ Trunk (Unreleased)
     FALCON-1213 Base framework of the native scheduler(Pallavi Rao)
 
   IMPROVEMENTS
+    FALCON-1634 Add .reviewboardrc file so that review requests can be created using just command line(Rajat Khandelwal via Ajay Yadava)
+
+    FALCON-1557 Supporting some Entity Management Api's and admin api in Falcon Unit (Narayan Periwal via Pallavi Rao)
+
+    FALCON-1622 On starting falcon server JPS shows Main and not Falcon(Sandeep Samudrala via Ajay Yadava)
+
+    FALCON-1607 Native Scheduler - Code refactoring: Refactor ID into more specific sub classes(Ajay Yadava)
+
+    FALCON-1587 Divide FalconCLI.twiki into sub sections for different modules on the lines of REST Api(Praveen Adlakha via Ajay Yadava)
+
     FALCON-1552 Migration of  ProcessInstanceManagerIT to use falcon unit (Narayan Periwal via Pallavi Rao)
 
     FALCON-1486 Add Unit Test cases for HiveDR(Peeyush Bishnoi via Ajay Yadava)
@@ -35,6 +53,12 @@ Trunk (Unreleased)
   OPTIMIZATIONS
 
   BUG FIXES
+    FALCON-1604 Status API Not working in case of Falcon Native Scheduler(Pavan Kumar Kolamuri via Ajay Yadava)
+
+    FALCON- 1589 Package sample recipe properties file(Peeyush Bishnoi via Ajay Yadava)
+
+    FALCON-1597 Falcon should not retry in case of an instance being manual kill from user (Sandeep Samudrala via Pallavi Rao)
+
     FALCON-1606 Process schedule fails in some cases in case of NativeScheduler(Pavan Kumar Kolamuri via Ajay Yadava)
 
     FALCON-1605 Instance API is not working as expected in case of Native Scheduler(Pavan Kumar Kolamuri via Ajay Yadava)

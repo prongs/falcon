@@ -19,8 +19,8 @@ package org.apache.falcon.state.store;
 
 import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.exception.StateStoreException;
+import org.apache.falcon.state.EntityID;
 import org.apache.falcon.state.EntityState;
-import org.apache.falcon.state.ID;
 
 import java.util.Collection;
 
@@ -39,24 +39,24 @@ public interface EntityStateStore {
      * @return Entity corresponding to the key
      * @throws StateStoreException - If entity does not exist.
      */
-    EntityState getEntity(ID entityId) throws StateStoreException;
+    EntityState getEntity(EntityID entityId) throws StateStoreException;
 
     /**
      * @param entityId
      * @return true, if entity exists in store.
      */
-    boolean entityExists(ID entityId);
+    boolean entityExists(EntityID entityId) throws StateStoreException;;
 
     /**
      * @param state
      * @return Entities in a given state.
      */
-    Collection<Entity> getEntities(EntityState.STATE state);
+    Collection<Entity> getEntities(EntityState.STATE state) throws StateStoreException;
 
     /**
      * @return All Entities in the store.
      */
-    Collection<EntityState> getAllEntities();
+    Collection<EntityState> getAllEntities() throws StateStoreException;
 
     /**
      * Update an existing entity with the new values.
@@ -72,5 +72,20 @@ public interface EntityStateStore {
      * @param entityId
      * @throws StateStoreException
      */
-    void deleteEntity(ID entityId) throws StateStoreException;
+    void deleteEntity(EntityID entityId) throws StateStoreException;
+
+
+    /**
+     * Removes all entities and its instances from the store.
+     *
+     * @throws StateStoreException
+     */
+    void deleteEntities() throws StateStoreException;
+
+    /**
+     * Checks whether entity completed or not.
+     * @param entityId
+     * @return
+     */
+    boolean isEntityCompleted(EntityID entityId);
 }

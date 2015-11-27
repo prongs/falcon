@@ -64,7 +64,7 @@ public final class StateService {
      */
     public void handleStateChange(Entity entity, EntityState.EVENT event, EntityStateChangeHandler handler)
         throws FalconException {
-        ID id = new ID(entity);
+        EntityID id = new EntityID(entity);
         if (!stateStore.entityExists(id)) {
             // New entity
             if (event == EntityState.EVENT.SUBMIT) {
@@ -122,7 +122,7 @@ public final class StateService {
      */
     public void handleStateChange(ExecutionInstance instance, InstanceState.EVENT event,
                                   InstanceStateChangeHandler handler) throws FalconException {
-        ID id = new ID(instance);
+        InstanceID id = new InstanceID(instance);
         if (!stateStore.executionInstanceExists(id)) {
             // New instance
             if (event == InstanceState.EVENT.TRIGGER) {
@@ -136,6 +136,7 @@ public final class StateService {
             InstanceState instanceState = stateStore.getExecutionInstance(id);
             InstanceState.STATE newState = instanceState.nextTransition(event);
             callbackHandler(instance, event, handler);
+            instanceState = new InstanceState(instance);
             instanceState.setCurrentState(newState);
             stateStore.updateExecutionInstance(instanceState);
             LOG.debug("State of instance: {} changed to: {} as a result of event: {}.", id,
