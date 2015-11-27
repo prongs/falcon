@@ -15,18 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.falcon.cli;
 
+/**
+ * Runtime exception in CLI. Since most methods are invoked through reflection, checked exceptions
+ * end up being thrown as UndeclaredThrowableException. Instead of that, let's throw our own RuntimeException.
+ */
 public class FalconCLIRuntimeException extends RuntimeException {
-  public FalconCLIRuntimeException(Throwable e) {
-    super(e);
-  }
+    public FalconCLIRuntimeException(Throwable e) {
+        super(e);
+    }
 
-  public FalconCLIRuntimeException(String message) {
-    super(message);
-  }
+    public FalconCLIRuntimeException(String message) {
+        super(message);
+    }
 
-  public FalconCLIRuntimeException(String message, Throwable cause) {
-    super(message, cause);
-  }
+    public FalconCLIRuntimeException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

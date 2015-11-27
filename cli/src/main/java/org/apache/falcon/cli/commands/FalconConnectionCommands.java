@@ -16,38 +16,41 @@
  * limitations under the License.
  */
 
+
 package org.apache.falcon.cli.commands;
 
 
-import javax.annotation.Nonnull;
-
 import org.apache.commons.lang3.StringUtils;
-
 import org.springframework.shell.core.annotation.CliCommand;
 import org.springframework.shell.core.annotation.CliOption;
 
+import javax.annotation.Nonnull;
+
+/**
+ * Connection Commands.
+ */
 public class FalconConnectionCommands extends BaseFalconCommands {
 
-  @CliCommand(value = "get", help = "get properties")
-  public String getParameter(@CliOption(key = {"", "key"}, mandatory = false, help = "<key>") final String key) {
-    if (StringUtils.isBlank(key)) {
-      return getClientProperties().toString();
+    @CliCommand(value = "get", help = "get properties")
+    public String getParameter(@CliOption(key = {"", "key"}, mandatory = false, help = "<key>") final String key) {
+        if (StringUtils.isBlank(key)) {
+            return getClientProperties().toString();
+        }
+        return getClientProperties().getProperty(key);
     }
-    return getClientProperties().getProperty(key);
-  }
 
-  @CliCommand(value = "set", help = "set properties")
-  public void setParameter(@CliOption(key = {"", "keyval"}, mandatory = true, help = "<key-val>")
-  @Nonnull final String keyVal) {
-    String[] kvArray = keyVal.split("=");
-    String key = "";
-    String value = "";
-    if (kvArray.length > 0) {
-      key = kvArray[0];
+    @CliCommand(value = "set", help = "set properties")
+    public void setParameter(@CliOption(key = {"", "keyval"}, mandatory = true, help = "<key-val>")
+                             @Nonnull final String keyVal) {
+        String[] kvArray = keyVal.split("=");
+        String key = "";
+        String value = "";
+        if (kvArray.length > 0) {
+            key = kvArray[0];
+        }
+        if (kvArray.length > 1) {
+            value = kvArray[1];
+        }
+        setClientProperty(key, value);
     }
-    if (kvArray.length > 1) {
-      value = kvArray[1];
-    }
-    setClientProperty(key, value);
-  }
 }

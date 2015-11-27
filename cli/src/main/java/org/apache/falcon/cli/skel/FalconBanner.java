@@ -7,15 +7,16 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+
+
 package org.apache.falcon.cli.skel;
 
 import org.springframework.core.Ordered;
@@ -31,30 +32,30 @@ import org.springframework.stereotype.Component;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class FalconBanner extends DefaultBannerProvider {
 
-  @Override
-  public String getBanner() {
-    StringBuffer buf = new StringBuffer();
-    buf.append("=======================================" + OsUtils.LINE_SEPARATOR);
-    buf.append("*                                     *" + OsUtils.LINE_SEPARATOR);
-    buf.append("*            Falcon CLI               *" + OsUtils.LINE_SEPARATOR);
-    buf.append("*                                     *" + OsUtils.LINE_SEPARATOR);
-    buf.append("=======================================" + OsUtils.LINE_SEPARATOR);
-    return buf.toString();
+    @Override
+    public String getBanner() {
+        return new StringBuilder()
+                .append("=======================================").append(OsUtils.LINE_SEPARATOR)
+                .append("*                                     *").append(OsUtils.LINE_SEPARATOR)
+                .append("*            Falcon CLI               *").append(OsUtils.LINE_SEPARATOR)
+                .append("*                                     *").append(OsUtils.LINE_SEPARATOR)
+                .append("=======================================").append(OsUtils.LINE_SEPARATOR)
+                .toString();
 
-  }
+    }
 
-  @Override
-  public String getWelcomeMessage() {
-    return "Welcome to Falcon CLI";
-  }
+    @Override
+    public String getWelcomeMessage() {
+        return "Welcome to Falcon CLI";
+    }
 
-  @Override
-  public String getVersion() {
-    return getClass().getPackage().getImplementationVersion();
-  }
+    @Override
+    public String getVersion() {
+        return getClass().getPackage().getImplementationVersion();
+    }
 
-  @Override
-  public String getProviderName() {
-    return "Falcon CLI";
-  }
+    @Override
+    public String getProviderName() {
+        return "Falcon CLI";
+    }
 }
